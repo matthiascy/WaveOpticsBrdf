@@ -23,27 +23,27 @@ along with WaveOpticsBrdf.  If not, see <https://www.gnu.org/licenses/>.
 #include "spectrum.h"
 
 GaborKernel Heightfield::g(int i, int j, Float F, Float lambda) {
-    Vector2 m_k(Float((i + 0.5) * mTexelWidth), Float((j + 0.5) * mTexelWidth));
+    Vector2f m_k(Float((i + 0.5) * mTexelWidth), Float((j + 0.5) * mTexelWidth));
     Float l_k = mTexelWidth;
 
-    Vector2 mu_k = m_k;
+    Vector2f mu_k = m_k;
     Float sigma_k = l_k / SCALE_FACTOR;
 
     Float H_mk = mHeightfieldImage->getValue(i + 0.5, j + 0.5) * mTexelWidth * mVertScale;   // Assuming mTexelWidth doesn't affect the heightfield's shape.
-    Vector2 HPrime_mk(Float((mHeightfieldImage->getValue(i + 1, j) - mHeightfieldImage->getValue(i, j)) * mVertScale),
+    Vector2f HPrime_mk(Float((mHeightfieldImage->getValue(i + 1, j) - mHeightfieldImage->getValue(i, j)) * mVertScale),
                       Float((mHeightfieldImage->getValue(i, j + 1) - mHeightfieldImage->getValue(i, j)) * mVertScale));
 
     comp C_k = sqrt(F) * l_k * l_k * cnis(4.0 * M_PI / lambda * (H_mk - HPrime_mk.dot(m_k)));
-    Vector2 a_k = 2.0 * HPrime_mk / lambda;
+    Vector2f a_k = 2.0 * HPrime_mk / lambda;
 
     return GaborKernel(mu_k, sigma_k, a_k, C_k);
 }
 
-Vector2 Heightfield::n(Float i, Float j) {
-    Vector2 HPrime(Float((mHeightfieldImage->getValue(i + 0.5f, j) - mHeightfieldImage->getValue(i - 0.5f, j)) * mVertScale),
+Vector2f Heightfield::n(Float i, Float j) {
+    Vector2f HPrime(Float((mHeightfieldImage->getValue(i + 0.5f, j) - mHeightfieldImage->getValue(i - 0.5f, j)) * mVertScale),
                    Float((mHeightfieldImage->getValue(i, j + 0.5f) - mHeightfieldImage->getValue(i, j - 0.5f)) * mVertScale));
 
-    Vector3 n(-HPrime(0), -HPrime(1), Float(1.0));
+    Vector3f n(-HPrime(0), -HPrime(1), Float(1.0));
     n.normalize();
 
     return n.head(2);
@@ -76,19 +76,19 @@ WaveBrdfAccel::WaveBrdfAccel(Heightfield *heightfield, string method) {
         vector<GaborKernelPrime> &gaborKernelPrimeRow = gaborKernelPrime[i];
         vector<AABB> &angularBBRow = angularBBLayer[i];
         for (int j = 0; j < width; j++) {
-            Vector2 m_k(Float((i + 0.5) * mHeightfield->mTexelWidth), Float((j + 0.5) * mHeightfield->mTexelWidth));
+            Vector2f m_k(Float((i + 0.5) * mHeightfield->mTexelWidth), Float((j + 0.5) * mHeightfield->mTexelWidth));
             Float l_k = mHeightfield->mTexelWidth;
 
-            Vector2 mu_k = m_k;
+            Vector2f mu_k = m_k;
             Float sigma_k = l_k / SCALE_FACTOR;
 
             Float H_mk = mHeightfield->mHeightfieldImage->getValue(i, j) * mHeightfield->mTexelWidth * mHeightfield->mVertScale;   // Assuming mTexelWidth doesn't affect the heightfield's shape.
 
-            Vector2 HPrime_mk(Float((mHeightfield->mHeightfieldImage->getValue(i + 1, j) - mHeightfield->mHeightfieldImage->getValue(i - 1, j)) / 2.0 * mHeightfield->mVertScale),
+            Vector2f HPrime_mk(Float((mHeightfield->mHeightfieldImage->getValue(i + 1, j) - mHeightfield->mHeightfieldImage->getValue(i - 1, j)) / 2.0 * mHeightfield->mVertScale),
                               Float((mHeightfield->mHeightfieldImage->getValue(i, j + 1) - mHeightfield->mHeightfieldImage->getValue(i, j - 1)) / 2.0 * mHeightfield->mVertScale));
 
             Float cInfo_k = H_mk - HPrime_mk.dot(m_k);
-            Vector2 aInfo_k = 2.0 * HPrime_mk;
+            Vector2f aInfo_k = 2.0 * HPrime_mk;
 
             gaborKernelPrimeRow.push_back(GaborKernelPrime(mu_k, sigma_k, cInfo_k, aInfo_k));
             angularBBRow.push_back(AABB(-aInfo_k(0), -aInfo_k(0), -aInfo_k(1), -aInfo_k(1)));
@@ -128,17 +128,17 @@ comp WaveBrdfAccel::queryIntegral(const Query &query, int layer, int xIndex, int
     }
 
     if (layer == 0) {
-        Vector2 omega_a = (query.omega_i + query.omega_o) / 2.0;
-        Vector2 m_k(Float((xIndex + 0.5) * mHeightfield->mTexelWidth), Float((yIndex + 0.5) * mHeightfield->mTexelWidth));
+        Vector2f omega_a = (query.omega_i + query.omega_o) / 2.0;
+        Vector2f m_k(Float((xIndex + 0.5) * mHeightfield->mTexelWidth), Float((yIndex + 0.5) * mHeightfield->mTexelWidth));
 
         Float period = mHeightfield->mTexelWidth * mHeightfield->mHeightfieldImage->height;
         Float pDistSqr = distSqrPeriod(m_k, query.mu_p, period);
         if (pDistSqr > (3.0 * query.sigma_p) * (3.0 * query.sigma_p))
             return comp(Float(0.0), Float(0.0));
 
-        Vector2 uQuery = 2.0 * omega_a / query.lambda;
+        Vector2f uQuery = 2.0 * omega_a / query.lambda;
         AABB &aabb = angularBB[layer][xIndex][yIndex];
-        Vector2 abLambda(aabb.xMin / query.lambda, aabb.yMin / query.lambda);
+        Vector2f abLambda(aabb.xMin / query.lambda, aabb.yMin / query.lambda);
         
         abLambda *= C3 / 2.0f;
 
@@ -150,14 +150,14 @@ comp WaveBrdfAccel::queryIntegral(const Query &query, int layer, int xIndex, int
 
         Float C2 = 1.0f;
         if (mMethod == "Kirchhoff") {
-            Vector2 HPrime = gaborKernelPrime[xIndex][yIndex].aInfo / 2.0f;
-            Vector3 m(-HPrime(0), -HPrime(1), 1.0);
+            Vector2f HPrime = gaborKernelPrime[xIndex][yIndex].aInfo / 2.0f;
+            Vector3f m(-HPrime(0), -HPrime(1), 1.0);
             m.normalize();
 
             Float oDotN = sqrt(abs(1.0f - query.omega_o.dot(query.omega_o)));
             Float iDotN = sqrt(abs(1.0f - query.omega_i.dot(query.omega_i)));
-            Vector3 omega_o(query.omega_o(0), query.omega_o(1), oDotN);
-            Vector3 omega_i(query.omega_i(0), query.omega_i(1), iDotN);
+            Vector3f omega_o(query.omega_o(0), query.omega_o(1), oDotN);
+            Vector3f omega_i(query.omega_i(0), query.omega_i(1), iDotN);
 
             C2 = (omega_o + omega_i).dot(m) / m(2);
         }
@@ -184,8 +184,8 @@ comp WaveBrdfAccel::queryIntegral(const Query &query, int layer, int xIndex, int
         return comp(Float(0.0), Float(0.0));
 
     // Reject the node angularly.
-    Vector2 omega_a = (query.omega_i + query.omega_o) / 2.0;
-    Vector2 uQuery = 2.0 * omega_a / query.lambda;
+    Vector2f omega_a = (query.omega_i + query.omega_o) / 2.0;
+    Vector2f uQuery = 2.0 * omega_a / query.lambda;
     AABB &aabb = angularBB[layer][xIndex][yIndex];
     AABB aabbLambda(aabb.xMin * C3 / 2.0f / query.lambda, aabb.xMax * C3 / 2.0f / query.lambda,
                     aabb.yMin * C3 / 2.0f / query.lambda, aabb.yMax * C3 / 2.0f / query.lambda);
@@ -242,7 +242,7 @@ Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution) {
          for (int i = 0; i < resolution; i++) {
              printf("Generating BRDF image: row %d...\n", i);
              for (int j = 0; j < resolution; j++) {
-                 Vector2 omega_o((i + 0.5) / resolution * 2.0 - 1.0,
+                 Vector2f omega_o((i + 0.5) / resolution * 2.0 - 1.0,
                                  (j + 0.5) / resolution * 2.0 - 1.0);
                  Float brdfValue;
                  if (omega_o.norm() > 1.0) {
@@ -267,7 +267,7 @@ Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution) {
         for (int i = 0; i < resolution; i++) {
             printf("Generating BRDF image: row %d...\n", i);
             for (int j = 0; j < resolution; j++) {
-                Vector2 omega_o((i + 0.5) / resolution * 2.0 - 1.0,
+                Vector2f omega_o((i + 0.5) / resolution * 2.0 - 1.0,
                                 (j + 0.5) / resolution * 2.0 - 1.0);
 
                 vector<float> spectrumSamples;
@@ -318,12 +318,12 @@ Float GeometricBrdf::queryBrdf(const Query &query) {
     return 0.0;
 }
 
-inline Vector2 sampleGauss2d(Float r1, Float r2) {
+inline Vector2f sampleGauss2d(Float r1, Float r2) {
     // https://en.wikipedia.org/wiki/Box-Muller_transform
     Float tmp = std::sqrt(-2 * std::log(r1));
     Float x = tmp * std::cos(2 * Float(M_PI) * r2);
     Float y = tmp * std::sin(2 * Float(M_PI) * r2);
-    return Vector2(x, y);
+    return Vector2f(x, y);
 }
 
 Float* GeometricBrdf::genNdfImage(const Query &query, int resolution) {
@@ -337,12 +337,12 @@ Float* GeometricBrdf::genNdfImage(const Query &query, int resolution) {
             // sample query Gaussian, stratified
             Float rx = (i + randUniform<Float>()) / N;
             Float ry = (j + randUniform<Float>()) / N;
-            Vector2 g = sampleGauss2d(rx, ry);
+            Vector2f g = sampleGauss2d(rx, ry);
 
             // look up normal
-            Vector2 x = g * query.sigma_p / mHeightfield->mTexelWidth;
+            Vector2f x = g * query.sigma_p / mHeightfield->mTexelWidth;
             x += query.mu_p;
-            Vector2 normal = mHeightfield->n(x[0], x[1]);
+            Vector2f normal = mHeightfield->n(x[0], x[1]);
 
             // intrinsic roughness
             normal += intrinsicRoughness * sampleGauss2d(randUniform<Float>(), randUniform<Float>());
@@ -360,9 +360,9 @@ Float* GeometricBrdf::genNdfImage(const Query &query, int resolution) {
     memset(bins, 0, npix * sizeof(int));
     for (int i = 0; i < N*N; i++) bins[inds[i]]++;
 
-    Vector3 *ndfImage = new Vector3[npix];
+    Vector3f *ndfImage = new Vector3f[npix];
     Float scale = Float(npix) / (4 * N * N);
-    for (int i = 0; i < npix; i++) ndfImage[i] = Vector3::Constant(scale * bins[i]);
+    for (int i = 0; i < npix; i++) ndfImage[i] = Vector3f::Constant(scale * bins[i]);
 
     delete[] inds;
     delete[] bins;
@@ -382,14 +382,14 @@ Float* GeometricBrdf::genBrdfImage(const Query &query, int resolution) {
 
             const int numSamples = 16;
             for (int k = 0; k < numSamples; k++) {
-                Vector2 omega_o((i + randUniform<Float>()) / resolution * 2.0 - 1.0,
+                Vector2f omega_o((i + randUniform<Float>()) / resolution * 2.0 - 1.0,
                                 (j + randUniform<Float>()) / resolution * 2.0 - 1.0);
 
-                Vector3 omega_i_3(query.omega_i(0), query.omega_i(1), sqrt(1.0 - query.omega_i.norm()));
-                Vector3 omega_o_3(omega_o(0), omega_o(1), sqrt(1.0 - omega_o.norm()));
-                Vector2 omega_h = (omega_i_3 + omega_o_3).normalized().head(2);
+                Vector3f omega_i_3(query.omega_i(0), query.omega_i(1), sqrt(1.0 - query.omega_i.norm()));
+                Vector3f omega_o_3(omega_o(0), omega_o(1), sqrt(1.0 - omega_o.norm()));
+                Vector2f omega_h = (omega_i_3 + omega_o_3).normalized().head(2);
 
-                Vector2 xy = (omega_h + Vector2(1.0, 1.0)) / 2.0 * ndfResolution;
+                Vector2f xy = (omega_h + Vector2f(1.0, 1.0)) / 2.0 * ndfResolution;
 
                 int xInt = (int)(xy(0));
                 int yInt = (int)(xy(1));

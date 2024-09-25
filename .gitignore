@@ -1,4 +1,2 @@
-*.o
-*.exr
-genBrdf
-heightfields/*
+.idea/
+cmake-build-**

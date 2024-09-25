@@ -91,9 +91,9 @@ int main(int argc, char **argv) {
     Heightfield heightfield(&heightfieldImage, texelWidth, vertScale);
 
     Query query;
-    query.mu_p = Vector2(mu_x, mu_y);
+    query.mu_p = Vector2f(mu_x, mu_y);
     query.sigma_p = sigma_p;
-    query.omega_i = Vector3(omega_i_x, omega_i_y, 1.0).normalized().head(2);
+    query.omega_i = Vector3f(omega_i_x, omega_i_y, 1.0).normalized().head(2);
     query.lambda = lambda;
 
     if (method == "Geom") {

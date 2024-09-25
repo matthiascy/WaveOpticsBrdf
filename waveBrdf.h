@@ -38,10 +38,10 @@ using namespace Eigen;
 class EXRImage;
 
 struct Query {
-    Vector2 mu_p;
+    Vector2f mu_p;
     Float sigma_p;
-    Vector2 omega_i;
-    Vector2 omega_o;
+    Vector2f omega_i;
+    Vector2f omega_o;
 
     Float lambda;           // in microns.
 };
@@ -57,7 +57,7 @@ public:
         : mHeightfieldImage(heightfieldImage), mTexelWidth(texelWidth), mVertScale(vertScale) {}
     GaborKernel g(int i, int j, Float F, Float lambda);
 
-    Vector2 n(Float i, Float j);
+    Vector2f n(Float i, Float j);
 public:
     EXRImage *mHeightfieldImage;
     Float mTexelWidth;      // in microns.
