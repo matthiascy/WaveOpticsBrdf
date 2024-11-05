@@ -20,6 +20,15 @@ along with WaveOpticsBrdf.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "exrimage.h"
+#include "spectrum.h"
+#include <OpenEXR/ImfMultiPartOutputFile.h>
+#include <OpenEXR/ImfOutputPart.h>
+#include <OpenEXR/ImfHeader.h>
+#include <OpenEXR/ImfChannelList.h>
+#include <OpenEXR/ImfOutputFile.h>
+#include <format>
+#include <regex>
+#include <string>
 
 Float A_inv[16][16] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
                        {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -37,6 +46,10 @@ Float A_inv[16][16] = {{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
                        {0, 0, 0, 0, 2, 0, -2, 0, 0, 0, 0, 0, 1, 0, 1, 0},
                        {-6, 6, 6, -6, -4, -2, 4, 2, -3, 3, -3, 3, -2, -1, -2, -1},
                        {4, -4, -4, 4, 2, 2, -2, -2, 2, -2, 2, -2, 1, 1, 1, 1}};
+
+double rad2deg(double rad) {
+    return rad / M_PI * 180.0;
+}
 
 EXRImage::EXRImage(const char *filename) {
     readImage(filename);
@@ -113,4 +126,93 @@ void EXRImage::writeImage(const Float *image, const char *filename, int outputHe
     file.writePixels(outputHeight);
 
     delete[] pixels;
+}
+
+string construct_layer_name(float theta, float phi) {
+    string theta_str = std::format("{:.2f}", rad2deg(theta));
+    auto idx = theta_str.find('.');
+    theta_str.replace(idx, 1, "_");
+    string phi_str = std::format("{:.2f}", rad2deg(phi));
+    idx = phi_str.find('.');
+    phi_str.replace(idx, 1, "_");
+
+    return std::format("θ{}.φ{}", theta_str, phi_str);
+}
+
+void reorganise_data(const Float *data, Float *data_copy, int outputHeight, int outputWidth) {
+    for (int k = 0; k < SPECTRUM_SAMPLES; k++)
+        for (int i = 0; i < outputHeight; i++)
+            for (int j = 0; j < outputWidth; j++)
+                data_copy[(k * outputHeight + i) * outputWidth + j] = data[(i * outputWidth + j) * SPECTRUM_SAMPLES + k];
+}
+
+void EXRImage::writeRawSingleLayer(const Float *data, const char *filename, int outputHeight, int outputWidth, float theta, float phi) {
+    Float *data_copy = new Float[SPECTRUM_SAMPLES * outputHeight * outputWidth];
+    reorganise_data(data, data_copy, outputHeight, outputWidth);
+
+    Header header(outputWidth, outputHeight);
+    string theta_str = std::format("{:.2f}", theta);
+    header.setName(construct_layer_name(theta, phi));
+    header.setType("scanlineimage");
+    FrameBuffer frameBuffer;
+
+    // Each channel is a certain wavelength.
+    for (int k = 0; k < SPECTRUM_SAMPLES; k++) {
+        // in nanometers
+        double lambda = (k + 0.5) / SPECTRUM_SAMPLES * (0.83 - 0.36) + 0.36;
+        char channelName[256];
+        sprintf(channelName, "%.0f nm", lambda * 1000.0);
+        header.channels().insert(channelName, Channel(FLOAT));
+        frameBuffer.insert(channelName, Slice(FLOAT, (char *) &data_copy[k * outputHeight * outputWidth], sizeof(Float), sizeof(Float) * outputWidth));
+    }
+
+    MultiPartOutputFile file(filename, &header, 1);
+    OutputPart file_part(file, 0);
+    file_part.setFrameBuffer(frameBuffer);
+    file_part.writePixels(outputHeight);
+
+    delete[] data_copy;
+}
+
+void EXRImage::writeRawMultiLayers(const Float* const*data, const char *filename, int outputHeight, int outputWidth, float* theta, float* phi, int n_phi, int n_theta) {
+    auto n = n_phi * n_theta;
+    Header headers[n];
+    FrameBuffer framebuffers[n];
+    Float *data_copy = new Float[n * SPECTRUM_SAMPLES * outputHeight * outputWidth];
+    memset(data_copy, 0, sizeof(Float) * n * SPECTRUM_SAMPLES * outputHeight * outputWidth);
+
+    for (int i = 0; i < n_phi; i++) {
+        for (int j = 0; j < n_theta; j++) {
+            auto idx = i * n_theta + j;
+            headers[idx] = Header(outputWidth, outputHeight);
+            headers[idx].setName(construct_layer_name(theta[j], phi[i]));
+            // printf("Layer name: %s\n", headers[idx].name().c_str());
+            headers[idx].setType("scanlineimage");
+
+            reorganise_data(data[idx], &data_copy[idx * SPECTRUM_SAMPLES * outputHeight * outputWidth], outputHeight, outputWidth);
+
+            // EXRImage::writeRawSingleLayer(data[idx], headers[idx].name().c_str(), outputHeight, outputWidth, theta[j], phi[i]);
+
+            // Each channel is a certain wavelength.
+            for (int k = 0; k < SPECTRUM_SAMPLES; k++) {
+                // in nanometers
+                double lambda = (k + 0.5) / SPECTRUM_SAMPLES * (0.83 - 0.36) + 0.36;
+                char channelName[256];
+                sprintf(channelName, "%.0f nm", lambda * 1000.0);
+                headers[idx].channels().insert(channelName, Channel(FLOAT));
+                framebuffers[idx].insert(channelName, Slice(FLOAT, (char *) &data_copy[(idx * SPECTRUM_SAMPLES + k) * outputHeight * outputWidth], sizeof(Float), sizeof(Float) * outputWidth));
+            }
+        }
+    }
+
+
+    MultiPartOutputFile file(filename, headers, n);
+
+    for (int i = 0; i < n; i++) {
+        OutputPart file_part(file, i);
+        file_part.setFrameBuffer(framebuffers[i]);
+        file_part.writePixels(outputHeight);
+    }
+
+    delete[] data_copy;
 }

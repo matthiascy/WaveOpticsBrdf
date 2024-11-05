@@ -70,7 +70,7 @@ public:
     BrdfBase(Heightfield *heightfield) : mHeightfield(heightfield) {}
 public:
     virtual Float queryBrdf(const Query &query) = 0;
-    virtual Float* genBrdfImage(const Query &query, int resolution) = 0;
+    virtual Float* genBrdfImage(const Query &query, int resolution, bool rgb) = 0;
 
 protected:
     Heightfield *mHeightfield;
@@ -82,7 +82,7 @@ public:
     GeometricBrdf(Heightfield *heightfield, int sampleNum = 10000000) : mHeightfield(heightfield), mSampleNum(sampleNum) {}
     Float* genNdfImage(const Query &query, int resolution);
     virtual Float queryBrdf(const Query &query);
-    virtual Float* genBrdfImage(const Query &query, int resolution);
+    virtual Float* genBrdfImage(const Query &query, int resolution, bool);
 protected:
     Heightfield *mHeightfield;
 private:
@@ -95,7 +95,7 @@ public:
     WaveBrdf() {}
     WaveBrdf(Heightfield *heightfield) : mHeightfield(heightfield) {}
     virtual Float queryBrdf(const Query &query);
-    virtual Float* genBrdfImage(const Query &query, int resolution);
+    virtual Float* genBrdfImage(const Query &query, int resolution, bool);
 protected:
     Heightfield *mHeightfield;
 };
@@ -108,7 +108,7 @@ public:
 
     comp queryIntegral(const Query &query, int layer, int xIndex, int yIndex);
     virtual Float queryBrdf(const Query &query);
-    virtual Float* genBrdfImage(const Query &query, int resolution);
+    virtual Float* genBrdfImage(const Query &query, int resolution, bool rgb);
 
 protected:
     Heightfield *mHeightfield;

@@ -71,3 +71,17 @@ five million samples.
 ```
 ./genBrdf -m Geom -i heightfields/brushed_8K.exr -o brushed_geom_brdf.exr -r 256 -x 20000 -y 10000 -p 20.0 -n 5000000
 ```
+
+## Changes:
+
+- 2024-10-30: instead of accepting cartesian coordinates for the incident light position, we now accept directly the spherical coordinates as the direction of the incident light. This change is more intuitive and avoids the need to normalize the incident light direction.
+- 2024-11-01: use the center of the surface as the default query point.
+- 2024-11-05:
+  - `-q` indicates if the measured BRDF value per wavelength should be converted to a color. The default value is false.
+  - `-z` tells the program to measure the BRDF for a range of incident directions. The default value is false. The resolution is set by `-s` and `-t`.
+  - `-s` and `-t` are now used to specify the incident theta and phi resolution of the BRDF image, respectively. The default values are 5 degrees and 30 degrees, respectively.
+  - remove parameter `-x` and `-y`.
+
+```shell
+./gent_brdf -m Wave -d ROHS -i heightfields.exr -o brdf.exr -w 0.5 -p 10.0 -r 512 -q -z -s 5 -t 30
+```

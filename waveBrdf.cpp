@@ -233,17 +233,17 @@ Float WaveBrdfAccel::queryBrdf(const Query &query) {
     return C1 * pow(abs(I), 2.0f);
 }
 
-Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution) {
-    Float *brdfImage = new Float[resolution * resolution * 3];
+Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution, bool rgb) {
+    Float *brdf_data = rgb ? new Float[resolution * resolution * 3] : new Float[resolution * resolution * SPECTRUM_SAMPLES];
 
     if (query.lambda != 0.0) {
          // Single wavelength.
          #pragma omp parallel for schedule(dynamic)
          for (int i = 0; i < resolution; i++) {
-             printf("Generating BRDF image: row %d...\n", i);
+             // printf("Generating BRDF image: row %d...\n", i);
              for (int j = 0; j < resolution; j++) {
                  Vector2f omega_o((i + 0.5) / resolution * 2.0 - 1.0,
-                                 (j + 0.5) / resolution * 2.0 - 1.0);
+                                  (j + 0.5) / resolution * 2.0 - 1.0);
                  Float brdfValue;
                  if (omega_o.norm() > 1.0) {
                      brdfValue = 0.0;
@@ -256,24 +256,34 @@ Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution) {
                  if (std::isnan(brdfValue))
                      brdfValue = 0.0;
 
-                 brdfImage[(i * resolution + j) * 3 + 0] = brdfValue;
-                 brdfImage[(i * resolution + j) * 3 + 1] = brdfValue;
-                 brdfImage[(i * resolution + j) * 3 + 2] = brdfValue;
+                 brdf_data[(i * resolution + j) * 3 + 0] = brdfValue;
+                 brdf_data[(i * resolution + j) * 3 + 1] = brdfValue;
+                 brdf_data[(i * resolution + j) * 3 + 2] = brdfValue;
              }
          }
     } else {
         // Multiple wavelengths.
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < resolution; i++) {
-            printf("Generating BRDF image: row %d...\n", i);
+            // printf("Generating BRDF image: row %d...\n", i);
             for (int j = 0; j < resolution; j++) {
                 Vector2f omega_o((i + 0.5) / resolution * 2.0 - 1.0,
                                 (j + 0.5) / resolution * 2.0 - 1.0);
 
                 vector<float> spectrumSamples;
 
-                for (int k = 0; k < SPECTRUM_SAMPLES; k++) {
+                /*
+                double x = omega_o.x();
+                double y = omega_o.y();
+                double z = sqrt(1.0 - x * x - y * y);
+                double phi = atan2(y, x);
+                double theta = acos(z);
+                if (phi < 0.0)
+                    phi += 2.0 * M_PI;
+                printf("%d,%d - theta: %.2f, phi: %.2f\n", i, j, rad2deg(theta), rad2deg(phi));
+                */
 
+                for (int k = 0; k < SPECTRUM_SAMPLES; k++) {
                     Float brdfValue;
                     if (omega_o.norm() > 1.0) {
                         brdfValue = 0.0;
@@ -290,17 +300,20 @@ Float* WaveBrdfAccel::genBrdfImage(const Query &query, int resolution) {
                     spectrumSamples.push_back(brdfValue);
                 }
 
-                float r, g, b;
-                SpectrumToRGB(spectrumSamples, r, g, b);
-
-                brdfImage[(i * resolution + j) * 3 + 0] = r;
-                brdfImage[(i * resolution + j) * 3 + 1] = g;
-                brdfImage[(i * resolution + j) * 3 + 2] = b;
+                if (rgb) {
+                    float r, g, b;
+                    SpectrumToRGB(spectrumSamples, r, g, b);
+                    brdf_data[(i * resolution + j) * 3 + 0] = r;
+                    brdf_data[(i * resolution + j) * 3 + 1] = g;
+                    brdf_data[(i * resolution + j) * 3 + 2] = b;
+                } else {
+                    std::copy(spectrumSamples.begin(), spectrumSamples.end(), brdf_data + (i * resolution + j) * SPECTRUM_SAMPLES);
+                }
             }
         }
     }
 
-    return brdfImage;
+    return brdf_data;
 }
 
 Float WaveBrdf::queryBrdf(const Query &query) {
@@ -308,7 +321,7 @@ Float WaveBrdf::queryBrdf(const Query &query) {
     return 0.0;
 }
 
-Float* WaveBrdf::genBrdfImage(const Query &query, int resolution) {
+Float* WaveBrdf::genBrdfImage(const Query &query, int resolution, bool) {
     cout << "Not implemented" << endl;
     return NULL;
 }
@@ -369,7 +382,7 @@ Float* GeometricBrdf::genNdfImage(const Query &query, int resolution) {
     return (Float*) ndfImage;
 }
 
-Float* GeometricBrdf::genBrdfImage(const Query &query, int resolution) {
+Float* GeometricBrdf::genBrdfImage(const Query &query, int resolution, bool _rgb) {
     const int ndfResolution = resolution * 2;
     Float *ndfImage = genNdfImage(query, ndfResolution);
 

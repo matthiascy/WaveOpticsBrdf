@@ -47,6 +47,10 @@ public:
 
     static void writeImage(const Float *image, const char *filename, int outputHeight, int outputWidth);
 
+    static void writeRawSingleLayer(const Float *data, const char *filename, int outputHeight, int outputWidth, float theta, float phi);
+
+    static void writeRawMultiLayers(const Float* const*data, const char *filename, int outputHeight, int outputWidth, float* theta, float* phi, int n_phi, int n_theta);
+
 private:
     void computeCoeff(Float *alpha, const Float *x);
 
