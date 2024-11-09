@@ -60,7 +60,7 @@ WaveBrdfAccel::WaveBrdfAccel(Heightfield *heightfield, string method) {
 
     mTopLayer = (int) floor(log(height * 1.0) / log(2.0) + 1e-4); // 0, 1, 2, ..., mTopLayer.
 
-    cout << "Preprocessing heightfield: layer 0..." << endl;
+    // cout << "Preprocessing heightfield: layer 0..." << endl;
     angularBB.push_back(vector<vector<AABB>>());
     vector<vector<AABB>> &angularBBLayer = angularBB.back();
     angularBBLayer.reserve(height);
@@ -98,7 +98,7 @@ WaveBrdfAccel::WaveBrdfAccel(Heightfield *heightfield, string method) {
     int currentHeight = height;
     int currentWidth = width;
     for (int currentLayer = 1; currentLayer <= mTopLayer; currentLayer++) {
-        cout << "Preprocessing heightfield: layer " << currentLayer << "..." << endl;
+        // cout << "Preprocessing heightfield: layer " << currentLayer << "..." << endl;
         vector<vector<AABB>> angularBBLayer;
         currentHeight >>= 1;
         currentWidth >>= 1;

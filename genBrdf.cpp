@@ -112,10 +112,12 @@ int main(int argc, char **argv) {
     mu_x = heightfieldImage.width * texelWidth / 2.0;
     mu_y = heightfieldImage.height * texelWidth / 2.0;
     query.mu_p = Vector2f(mu_x, mu_y);
-    printf("Center of the Gaussian footprint: (%f, %f)\n", mu_x, mu_y);
+    // printf("Center of the Gaussian footprint: (%f, %f)\n", mu_x, mu_y);
 
     query.sigma_p = sigma_p;
     query.lambda = lambda;
+
+    printf("Heightfield: %s\n", heightfieldFilename);
 
     if (method == "Geom") {
         GeometricBrdf geometricBrdf(&heightfield, sampleNum);
